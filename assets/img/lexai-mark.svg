@@ -1,0 +1,28 @@
+<svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="LEXAI mark">
+  <g stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Sword / central beam -->
+    <line x1="60" y1="16" x2="60" y2="92"/>
+    <circle cx="60" cy="14" r="3.4" fill="currentColor" stroke="none"/>
+    <!-- Balance beam -->
+    <line x1="24" y1="34" x2="96" y2="34"/>
+    <!-- Left pan -->
+    <line x1="33" y1="34" x2="22" y2="58"/>
+    <line x1="33" y1="34" x2="44" y2="58"/>
+    <path d="M20 58 q13 12 26 0" />
+    <!-- Right pan -->
+    <line x1="87" y1="34" x2="76" y2="58"/>
+    <line x1="87" y1="34" x2="98" y2="58"/>
+    <path d="M74 58 q13 12 26 0" />
+    <!-- Shield -->
+    <path d="M60 56 L80 64 V82 q0 16 -20 24 q-20 -8 -20 -24 V64 Z"/>
+  </g>
+  <!-- Circuit inside shield -->
+  <g stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none">
+    <path d="M52 86 h8 v-8 h8"/>
+    <path d="M52 78 h6"/>
+    <circle cx="50" cy="86" r="2.2" fill="currentColor" stroke="none"/>
+    <circle cx="50" cy="78" r="2.2" fill="currentColor" stroke="none"/>
+    <circle cx="70" cy="78" r="2.2" fill="currentColor" stroke="none"/>
+    <circle cx="60" cy="94" r="2.2" fill="currentColor" stroke="none"/>
+  </g>
+</svg>

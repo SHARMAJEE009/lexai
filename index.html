@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEXAI — Legal Assistant Platform</title>
+  <meta name="description" content="LEXAI — a premium AI-powered legal assistant platform. RAG chat, case-law search and a knowledge base.">
+  <link rel="icon" href="assets/img/lexai-mark.svg" type="image/svg+xml">
+
+  <!-- Fonts: Marcellus (display) + Hanken Grotesk (UI) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="assets/css/main.css">
+  <!-- Set theme before paint to avoid flash -->
+  <script>(function(){var t=localStorage.getItem('lexai-theme')||'light';document.documentElement.setAttribute('data-theme',t);})();</script>
+</head>
+<body>
+  <!-- App renders here. Load order matters: config → data → api → app. -->
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
