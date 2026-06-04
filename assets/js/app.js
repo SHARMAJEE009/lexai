@@ -68,7 +68,6 @@
   /* ---------- Navigation definition ---------- */
   const NAV = [
     { id:'dashboard', icon:'grid',  label:'Dashboard' },
-    { id:'upload',    icon:'upload',label:'Upload Document' },
     { id:'chat',      icon:'spark', label:'Ask Legal AI' },
     { id:'caselaws',  icon:'scale', label:'Case Laws' },
     { id:'circulars', icon:'bell',  label:'Circulars & Notifications' },
@@ -79,6 +78,15 @@
   ];
 
   /* ---------- Helpers ---------- */
+  function uuid() {
+    return crypto.randomUUID ? crypto.randomUUID()
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16); });
+  }
+  function renderMd(text) {
+    if (!text) return '';
+    if (typeof marked === 'undefined') return text.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    return marked.parse(text, { gfm: true, breaks: true });
+  }
   function toast(msg) {
     let t = $('#toast'); if (!t) { t = document.createElement('div'); t.id='toast'; t.className='toast'; document.body.appendChild(t); }
     t.textContent = msg; t.classList.add('show'); clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove('show'), 2600);
@@ -118,34 +126,18 @@
     },
 
     chat() {
-      const prompts = D.suggestedPrompts.map(p=>`<button class="chip js-prompt">${p}</button>`).join('');
-      const wired = !window.LEXAI_CONFIG.USE_MOCK && window.LEXAI_CONFIG.ENDPOINTS.chat;
       return `
       <div class="chat-layout fade-in">
         <aside class="chat-side">
           <button class="btn primary newchat js-newchat">${icon('plus')} New Chat</button>
-          <div class="hist-day">Today</div>
-          <div class="hist js-prompt">What are the compliance requirements...<span>10:30</span></div>
-          <div class="hist js-prompt">Difference between NCLT &amp; NCLAT<span>09:15</span></div>
-          <div class="hist-day">Yesterday</div>
-          <div class="hist js-prompt">FEMA rules for inward remittance<span></span></div>
-          <div class="hist js-prompt">Section 8 Company process<span></span></div>
-          <div class="hist-day">Previous 7 days</div>
-          <div class="hist js-prompt">NCLT vs NCLAT jurisdiction<span></span></div>
-          <div class="hist js-prompt">Liability of Directors<span></span></div>
+          <div id="chatHistList"></div>
         </aside>
         <section class="chat-main">
-          <div class="chat-scroll" id="chatScroll">
-            <div class="msg ai">
-              <div class="ai-head">${MARK}<b>LEXAI Assistant</b></div>
-              <div class="bubble">Welcome to the RAG-powered Legal Assistant. Ask me anything about Indian law — case laws, acts, circulars and compliance. Responses cite the source documents they're grounded in.
-
-${wired ? 'Connected to your live backend.' : 'Running in demo mode — connect a backend in config.js to enable live RAG answers.'}</div>
-            </div>
-          </div>
+          <div class="chat-scroll" id="chatScroll"></div>
           <div class="composer">
-            <div class="prompts">${prompts}</div>
             <div class="compose-box">
+              <button class="chat-upload-btn js-chat-upload" title="Upload document">${icon('upload')}</button>
+              <input type="file" id="chatUploadFile" multiple accept=".pdf,.docx,.doc,.txt" style="display:none">
               <textarea id="chatInput" rows="1" placeholder="Ask about company law, case law, circulars, FEMA, SEBI..."></textarea>
               <button class="send-btn js-send" title="Send">${icon('send')}</button>
             </div>
@@ -312,29 +304,195 @@ ${wired ? 'Connected to your live backend.' : 'Running in demo mode — connect 
      =================================================================== */
   const Wire = {
     chat() {
-      const input = $('#chatInput'); const scroll = $('#chatScroll');
-      const auto = ()=>{ input.style.height='auto'; input.style.height=Math.min(input.scrollHeight,160)+'px'; };
+      let sessionId = uuid();
+      let isNewSession = true;
+
+      const input      = $('#chatInput');
+      const scroll     = $('#chatScroll');
+      const histList   = $('#chatHistList');
+
+      // ---- localStorage helpers ----
+      const SESSIONS_KEY = 'lexai-sessions';
+      const msgKey  = id => 'lexai-session-' + id;
+      const getSessions  = ()    => JSON.parse(localStorage.getItem(SESSIONS_KEY) || '[]');
+      const saveSessions = list  => localStorage.setItem(SESSIONS_KEY, JSON.stringify(list));
+      const getMsgs      = id    => JSON.parse(localStorage.getItem(msgKey(id))   || '[]');
+      const saveMsgs     = (id, msgs) => localStorage.setItem(msgKey(id), JSON.stringify(msgs));
+
+      // ---- render sidebar history ----
+      const renderHist = () => {
+        const sessions = getSessions();
+        if (!sessions.length) { histList.innerHTML = '<div class="hist-empty">No chats yet</div>'; return; }
+        const now  = new Date();
+        const tod  = now.toDateString();
+        const yest = new Date(now - 86400000).toDateString();
+        const groups = [['Today',[]],['Yesterday',[]],['Previous 7 days',[]]];
+        sessions.forEach(s => {
+          const d = new Date(s.ts).toDateString();
+          if (d === tod)  groups[0][1].push(s);
+          else if (d === yest) groups[1][1].push(s);
+          else groups[2][1].push(s);
+        });
+        let html = '';
+        groups.forEach(([label, items]) => {
+          if (!items.length) return;
+          html += `<div class="hist-day">${label}</div>`;
+          items.forEach(s => {
+            const t = s.title.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+            html += `<div class="hist js-hist-item${s.id===sessionId?' active':''}" data-sid="${s.id}"><span class="hist-title">${t}</span><button class="hist-menu-btn js-hist-menu" data-sid="${s.id}" title="Options">⋮</button></div>`;
+          });
+        });
+        histList.innerHTML = html;
+        histList.querySelectorAll('.js-hist-item').forEach(el =>
+          el.addEventListener('click', e => { if (!e.target.closest('.js-hist-menu')) loadSession(el.dataset.sid); })
+        );
+        histList.querySelectorAll('.js-hist-menu').forEach(btn =>
+          btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const rect = btn.getBoundingClientRect();
+            menuDropdown.dataset.sid = btn.dataset.sid;
+            menuDropdown.style.visibility = 'hidden';
+            menuDropdown.style.display    = 'block';
+            const w = menuDropdown.offsetWidth;
+            menuDropdown.style.top        = (rect.bottom + 4) + 'px';
+            menuDropdown.style.left       = Math.max(4, rect.right - w) + 'px';
+            menuDropdown.style.visibility = 'visible';
+          })
+        );
+      };
+
+      // ---- three-dot context menu (singleton, attached to body) ----
+      const prev = document.getElementById('histMenuDropdown');
+      if (prev) prev.remove();
+      const menuDropdown = document.createElement('div');
+      menuDropdown.id = 'histMenuDropdown';
+      menuDropdown.className = 'hist-dropdown';
+      menuDropdown.innerHTML = `
+        <button class="hist-dd-item js-hist-dd-share">Share</button>
+        <button class="hist-dd-item danger js-hist-dd-delete">Delete</button>`;
+      document.body.appendChild(menuDropdown);
+
+      const closeMenu = () => { menuDropdown.style.display = 'none'; delete menuDropdown.dataset.sid; };
+
+      menuDropdown.querySelector('.js-hist-dd-delete').addEventListener('click', () => {
+        const id = menuDropdown.dataset.sid; if (!id) return;
+        closeMenu();
+        saveSessions(getSessions().filter(s => s.id !== id));
+        localStorage.removeItem(msgKey(id));
+        if (sessionId === id) { scroll.innerHTML = ''; sessionId = uuid(); isNewSession = true; }
+        renderHist();
+      });
+
+      menuDropdown.querySelector('.js-hist-dd-share').addEventListener('click', () => {
+        closeMenu(); toast('Share feature coming soon');
+      });
+
+      // Single document-level listener — always looks up the live element by ID
+      if (!window._lexaiMenuClose) {
+        window._lexaiMenuClose = true;
+        document.addEventListener('click', e => {
+          const dd = document.getElementById('histMenuDropdown');
+          if (dd && dd.style.display !== 'none' && !dd.contains(e.target) && !e.target.closest('.js-hist-menu')) {
+            dd.style.display = 'none'; delete dd.dataset.sid;
+          }
+        });
+      }
+
+      // ---- load an existing session into the scroll area ----
+      const loadSession = id => {
+        sessionId    = id;
+        isNewSession = false;
+        scroll.innerHTML = '';
+        getMsgs(id).forEach(m => {
+          const d = document.createElement('div');
+          d.className = 'msg ' + m.role;
+          d.innerHTML = m.role === 'user'
+            ? `<div class="bubble">${m.text.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>`
+            : `<div class="ai-head">${MARK}<b>LEXAI Assistant</b></div><div class="bubble md">${renderMd(m.text)}</div>`;
+          scroll.appendChild(d);
+        });
+        scroll.scrollTop = scroll.scrollHeight;
+        renderHist();
+      };
+
+      // ---- auto-resize textarea ----
+      const auto = () => { input.style.height='auto'; input.style.height=Math.min(input.scrollHeight,160)+'px'; };
       input.addEventListener('input', auto);
-      const add = (html, cls)=>{ const d=document.createElement('div'); d.className='msg '+cls+' fade-in'; d.innerHTML=html; scroll.appendChild(d); scroll.scrollTop=scroll.scrollHeight; return d; };
-      const ask = async (text)=>{
-        if(!text.trim()) return;
-        add(`<div class="bubble">${text}</div>`,'user');
-        input.value=''; auto();
-        const t = add(`<div class="ai-head">${MARK}<b>LEXAI Assistant</b></div><div class="bubble"><span class="typing"><span></span><span></span><span></span></span></div>`,'ai');
+
+      // ---- add animated message bubble ----
+      const add = (html, cls) => {
+        const d = document.createElement('div');
+        d.className = 'msg ' + cls + ' fade-in';
+        d.innerHTML = html;
+        scroll.appendChild(d);
+        scroll.scrollTop = scroll.scrollHeight;
+        return d;
+      };
+
+      // ---- send a message ----
+      const ask = async (text) => {
+        if (!text.trim()) return;
+        add(`<div class="bubble">${text.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div>`, 'user');
+        input.value = ''; auto();
+
+        // Create the session entry in history on the first message
+        if (isNewSession) {
+          const title = text.length > 44 ? text.slice(0, 44) + '…' : text;
+          const list  = getSessions();
+          list.unshift({ id: sessionId, title, ts: Date.now() });
+          saveSessions(list);
+          isNewSession = false;
+          renderHist();
+        }
+
+        // Persist user message
+        const msgs = getMsgs(sessionId);
+        msgs.push({ role: 'user', text });
+        saveMsgs(sessionId, msgs);
+
+        const t = add(`<div class="ai-head">${MARK}<b>LEXAI Assistant</b></div><div class="bubble"><span class="typing"><span></span><span></span><span></span></span></div>`, 'ai');
         try {
-          const r = await API.chat(text, []);
-          const srcs = (r.sources||[]).map(s=>`<div class="src"><span class="n">${s.n}</span>${s.title}</div>`).join('');
-          t.innerHTML = `<div class="ai-head">${MARK}<b>LEXAI Assistant</b>${r.confidence?`<span class="conf">Confidence ${r.confidence}%</span>`:''}</div><div class="bubble">${(r.answer||'').replace(/</g,'&lt;')}${srcs?`<div class="sources"><div class="lab">Sources &amp; Citations (${r.sources.length})</div>${srcs}</div>`:''}<div class="chat-acts"><button class="mini js-toast" data-msg="Sources opened">View Sources</button><button class="mini js-toast" data-msg="Answer downloaded">Download</button><button class="mini js-toast" data-msg="Copied">Copy</button></div></div>`;
-          bindToasts(t);
+          const r      = await API.chat(text, [], sessionId);
+          const answer = r.answer || '';
+          t.innerHTML  = `<div class="ai-head">${MARK}<b>LEXAI Assistant</b></div><div class="bubble md">${renderMd(answer)}</div>`;
+          msgs.push({ role: 'ai', text: answer });
+          saveMsgs(sessionId, msgs);
         } catch(e) {
-          t.innerHTML = `<div class="ai-head">${MARK}<b>LEXAI Assistant</b></div><div class="bubble">Could not reach the backend. Check <code>ENDPOINTS.chat</code> in config.js. (${e.message})</div>`;
+          t.innerHTML = `<div class="ai-head">${MARK}<b>LEXAI Assistant</b></div><div class="bubble">Could not reach the backend. (${e.message})</div>`;
         }
         scroll.scrollTop = scroll.scrollHeight;
       };
-      $('.js-send').addEventListener('click', ()=>ask(input.value));
-      input.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ask(input.value); } });
-      document.querySelectorAll('.js-prompt').forEach(b=> b.addEventListener('click', ()=> ask(b.textContent.replace(/\d{1,2}:\d{2}$/,'').trim())));
-      $('.js-newchat').addEventListener('click', ()=>{ scroll.querySelectorAll('.msg').forEach((m,i)=>{ if(i>0) m.remove(); }); });
+
+      $('.js-send').addEventListener('click', () => ask(input.value));
+      input.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); ask(input.value); } });
+
+
+      $('.js-newchat').addEventListener('click', () => {
+        scroll.innerHTML = '';
+        sessionId    = uuid();
+        isNewSession = true;
+        renderHist();
+      });
+
+      // ---- file upload inside chat ----
+      const chatUploadFile = $('#chatUploadFile');
+      $('.js-chat-upload').addEventListener('click', () => chatUploadFile.click());
+      chatUploadFile.addEventListener('change', async () => {
+        if (!chatUploadFile.files.length) return;
+        const files = [...chatUploadFile.files];
+        const t = add(`<div class="ai-head">${MARK}<b>LEXAI Assistant</b></div><div class="bubble"><span class="typing"><span></span><span></span><span></span></span> Uploading ${files.length} file(s)…</div>`, 'ai');
+        try {
+          const r = await API.uploadDocument(files);
+          t.innerHTML = `<div class="ai-head">${MARK}<b>LEXAI Assistant</b></div><div class="bubble"><span class="badge proc">Uploaded</span> ${r.message || files.length + ' file(s) uploaded and queued for indexing.'}</div>`;
+        } catch(e) {
+          t.innerHTML = `<div class="ai-head">${MARK}<b>LEXAI Assistant</b></div><div class="bubble"><span class="badge failed">Error</span> Upload failed: ${e.message}</div>`;
+        }
+        chatUploadFile.value = '';
+        scroll.scrollTop = scroll.scrollHeight;
+      });
+
+      // ---- init ----
+      renderHist();
     },
     search() {
       const input = $('#searchInput'); if(!input) return;
@@ -462,7 +620,7 @@ ${wired ? 'Connected to your live backend.' : 'Running in demo mode — connect 
   let current = 'dashboard';
 
   function renderShell() {
-    const navHtml = NAV.map((n,i)=>`${i===8?'<div class="nav-sep"></div>':''}<button class="nav-item" data-route="${n.id}">${icon(n.icon,'ic')}<span>${n.label}</span></button>`).join('');
+    const navHtml = NAV.map((n,i)=>`${i===7?'<div class="nav-sep"></div>':''}<button class="nav-item" data-route="${n.id}">${icon(n.icon,'ic')}<span>${n.label}</span></button>`).join('');
     document.body.innerHTML = `
       <div class="app" id="app">
         <div class="scrim" id="scrim"></div>

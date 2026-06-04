@@ -55,6 +55,6 @@ window.LEXAI_CONFIG = {
   /* RAG chat behaviour */
   CHAT: {
     streaming: false,    // set true once chatStream endpoint supports SSE
-    sessionId: "demo-session"
+    sessionId: "6a1d0293-792c-8322-bb9e-6a9a4dad5866"
   }
 };

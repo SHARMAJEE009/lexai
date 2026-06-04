@@ -30,15 +30,25 @@
 
   window.LexAPI = {
     /* ----- RAG AI CHAT -------------------------------------------------
-     * LIVE  → POST { query, history, sessionId } to ENDPOINTS.chat
-     * Expected response shape:
-     *   { answer:string, sources:[{n,title}], confidence:number }
+     * LIVE  → POST to ENDPOINTS.chat with n8n Chat Trigger format.
+     * n8n AI Agent response is typically { output: string }.
+     * Normalised here so the UI always receives { answer, sources, confidence }.
      * ------------------------------------------------------------------ */
-    async chat(query, history) {
+    async chat(query, history, sessionId) {
       if (live("chat")) {
-        return post(cfg.ENDPOINTS.chat, {
-          query, history: history || [], sessionId: cfg.CHAT.sessionId
+        const sid = sessionId || cfg.CHAT.sessionId;
+        const res = await fetch(cfg.ENDPOINTS.chat, {
+          method: "POST",
+          headers: headers(),
+          body: JSON.stringify({ action: "sendMessage", chatInput: query, sessionId: sid, query, history: history || [] })
         });
+        if (!res.ok) throw new Error("Request failed: " + res.status);
+        const raw = await res.json();
+        // Normalise: n8n returns { output } or [{ output }] or { text } or { answer }
+        const d = Array.isArray(raw) ? raw[0] : raw;
+        const answer = typeof d === "string" ? d
+          : (d.output ?? d.text ?? d.answer ?? d.message ?? d.response ?? JSON.stringify(d));
+        return { answer, sources: d.sources || [], confidence: d.confidence || null };
       }
       await delay(900); // simulate network/inference latency
       return data.demoChat;
