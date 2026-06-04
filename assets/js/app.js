@@ -126,6 +126,14 @@
     },
 
     chat() {
+      const sampleQueries = [
+        'Our company supplied goods worth \u20b915,00,000 to a client firm that has defaulted on payment for 5 months despite a signed contract. How do we recover the dues?',
+        'A debtor company owes us money but is now claiming insolvency. Can we file before the tribunal to recover our outstanding amount?',
+        'We have a vendor agreement that the other company has breached by non-payment. What laws apply and how do we initiate corporate recovery proceedings?',
+        'A corporate client issued us a cheque that bounced, and they\u2019ve ignored our demand notices. What are our legal options to recover the debt?'
+      ];
+      const queryCards = sampleQueries.map(q => `
+        <button class="js-sample-query" style="text-align:left; width:100%; padding:12px 16px; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--ink-2); font-size:12.5px; line-height:1.55; cursor:pointer; transition:.18s; font-family:inherit;" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--ink)';" onmouseout="this.style.borderColor='var(--line)';this.style.color='var(--ink-2)';" data-query="${q.replace(/"/g,'&quot;')}">${q}</button>`).join('');
       return `
       <div class="chat-layout fade-in">
         <aside class="chat-side">
@@ -133,7 +141,16 @@
           <div id="chatHistList"></div>
         </aside>
         <section class="chat-main">
-          <div class="chat-scroll" id="chatScroll"></div>
+          <div class="chat-scroll" id="chatScroll">
+            <div id="chatLanding" style="max-width:680px; margin:0 auto; padding:40px 20px 24px;">
+              <div style="text-align:center; margin-bottom:32px;">
+                <div style="display:inline-flex; align-items:center; justify-content:center; width:52px; height:52px; border-radius:14px; background:var(--gold-tint); color:var(--gold); margin-bottom:16px;">${icon('spark')}</div>
+                <h2 class="serif" style="font-size:22px; font-weight:400; margin-bottom:6px;">Ask Legal AI</h2>
+                <p style="color:var(--muted); font-size:13.5px;">Your corporate legal assistant. Ask about case law, acts, contracts, insolvency, and more.</p>
+              </div>
+              <div style="display:grid; gap:10px;">${queryCards}</div>
+            </div>
+          </div>
           <div class="composer">
             <div class="compose-box">
               <button class="chat-upload-btn js-chat-upload" title="Upload document">${icon('upload')}</button>
@@ -567,6 +584,26 @@
           }
         });
       }
+
+      // ---- sample query cards on landing screen ----
+      const hideLanding = () => { const l = document.getElementById('chatLanding'); if (l) l.remove(); };
+      scroll.querySelectorAll('.js-sample-query').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const q = btn.dataset.query;
+          hideLanding();
+          ask(q);
+        });
+      });
+
+      // hide landing when new chat is started manually
+      const origNewChat = () => { hideLanding(); scroll.innerHTML = ''; sessionId = uuid(); isNewSession = true; renderHist(); };
+      const newChatBtn = document.querySelector('.js-newchat');
+      if (newChatBtn) { newChatBtn.replaceWith(newChatBtn.cloneNode(true)); document.querySelector('.js-newchat').addEventListener('click', origNewChat); }
+
+      // hide landing on first manual send
+      const origAsk = ask;
+      scroll.closest('.chat-main').querySelector('.js-send').addEventListener('click', () => hideLanding(), { once: true });
+      input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) hideLanding(); }, { once: true });
 
       // ---- init ----
       renderHist();
