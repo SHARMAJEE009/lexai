@@ -8,7 +8,7 @@
 window.LEXAI_CONFIG = {
   /* When true, the app serves static demo data (assets/js/data.js).
      Set to false once your endpoints below are live.                  */
-  USE_MOCK: true,
+  USE_MOCK: false,
 
   /* Base URL for your API gateway / backend (optional convenience).   */
   API_BASE: "",
@@ -23,7 +23,7 @@ window.LEXAI_CONFIG = {
   ENDPOINTS: {
     // RAG AI Chat — receives { query, history, sessionId } → returns
     // { answer, sources:[...], confidence }
-    chat:          "",   // e.g. https://n8n.example.com/webhook/lexai-chat
+    chat:          "https://n8n.srv982383.hstgr.cloud/webhook/90c2a5fc-01eb-40b8-a537-2898a3e255dd/chat",
     chatStream:    "",   // optional SSE/stream endpoint for token streaming
 
     // Search across case laws / circulars / acts / articles
@@ -33,6 +33,9 @@ window.LEXAI_CONFIG = {
     documentGet:   "",   // GET ?id=
     documentSummarize: "", // POST { id } → { summary }
     documentAsk:   "",   // POST { id, question } → { answer, sources }
+
+    // Document upload — send files to RAG indexing pipeline
+    docUpload:     "https://n8n.srv982383.hstgr.cloud/webhook/rag_legal_lexai_indian_corporate_affairs_vector",
 
     // Knowledge base (admin) — upload / index management
     kbList:        "",   // GET document list

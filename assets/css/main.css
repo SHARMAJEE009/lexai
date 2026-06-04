@@ -332,7 +332,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .tab:hover { color: var(--ink); }
 
 /* ---------- AI Chat ---------- */
-.chat-layout { display: grid; grid-template-columns: 240px 1fr; gap: 0; height: calc(100vh - 70px); }
+.chat-layout { display: grid; grid-template-columns: 240px 1fr; gap: 0; height: calc(100vh - 70px); overflow: hidden; }
 .chat-side { border-right: 1px solid var(--line); padding: 16px; overflow-y: auto; }
 .chat-side .newchat { width: 100%; justify-content: center; margin-bottom: 14px; }
 .chat-side .hist-day { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin: 14px 0 6px; }
@@ -342,8 +342,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 }
 .hist:hover { background: var(--surface-2); }
 .hist span { color: var(--muted); font-size: 10.5px; flex: none; }
-.chat-main { display: flex; flex-direction: column; min-width: 0; }
-.chat-scroll { flex: 1; overflow-y: auto; padding: 24px 28px; }
+.chat-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
+.chat-scroll { flex: 1; overflow-y: auto; padding: 24px 28px; min-height: 0; }
 .msg { max-width: 760px; margin: 0 auto 22px; }
 .msg.user .bubble { background: var(--gold-tint); border: 1px solid var(--line); margin-left: auto; max-width: 78%; }
 .msg.user { display: flex; }
@@ -423,6 +423,41 @@ table.tbl td.name { color: var(--ink); font-weight: 600; }
 .folder svg { width: 17px; height: 17px; color: var(--gold); flex: none; }
 .folder .cnt { margin-left: auto; font-size: 11px; color: var(--muted); background: var(--surface-2); padding: 2px 8px; border-radius: 999px; }
 
+/* ---------- Google Drive banner (Saved Library) ---------- */
+.drive-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 18px 22px; margin-bottom: 20px; flex-wrap: wrap;
+  border-left: 3px solid var(--gold);
+}
+.drive-banner-left { display: flex; align-items: center; gap: 14px; }
+.drive-banner-left svg { width: 26px; height: 26px; color: var(--gold); flex: none; }
+.drive-banner-left h3 { font-size: 14px; font-weight: 700; }
+.drive-banner-left p { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+
+/* ---------- Upload Document ---------- */
+.upload-card { max-width: 680px; padding: 28px; }
+.upload-zone {
+  border: 2px dashed var(--line); border-radius: 14px; padding: 48px 28px;
+  text-align: center; cursor: pointer; transition: border-color .2s, background .2s;
+  color: var(--muted);
+}
+.upload-zone:hover, .upload-zone.drag { border-color: var(--gold); background: var(--gold-tint); color: var(--ink); }
+.upload-zone-ic { display: inline-grid; place-items: center; width: 52px; height: 52px;
+  border-radius: 14px; background: var(--gold-tint); color: var(--gold); margin-bottom: 14px; }
+.upload-zone-ic svg { width: 24px; height: 24px; }
+.upload-zone h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; color: inherit; }
+.upload-zone p { font-size: 13px; }
+.upload-file-list { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+.upload-file-row {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+  border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); font-size: 13px;
+}
+.upload-file-row svg { width: 16px; height: 16px; color: var(--gold); flex: none; }
+.upload-file-row .fname { flex: 1; font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.upload-file-row .fsize { color: var(--muted); font-size: 11.5px; flex: none; }
+.upload-actions { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+.upload-status { padding: 12px 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); font-size: 13px; color: var(--ink-2); margin-top: 4px; }
+
 /* ---------- Misc ---------- */
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
@@ -457,7 +492,7 @@ table.tbl td.name { color: var(--ink); font-weight: 600; }
   .hamburger { display: grid; }
   .search-layout { grid-template-columns: 1fr; }
   .filters { order: 2; }
-  .chat-layout { grid-template-columns: 1fr; height: calc(100vh - 66px); }
+  .chat-layout { grid-template-columns: 1fr; height: calc(100vh - 66px); overflow: hidden; }
   .chat-side { display: none; }
   .cols-3, .cols-2 { grid-template-columns: 1fr; }
   .avatar .who { display: none; }

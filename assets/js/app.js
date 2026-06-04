@@ -68,14 +68,13 @@
   /* ---------- Navigation definition ---------- */
   const NAV = [
     { id:'dashboard', icon:'grid',  label:'Dashboard' },
+    { id:'upload',    icon:'upload',label:'Upload Document' },
     { id:'chat',      icon:'spark', label:'Ask Legal AI' },
-    { id:'search',    icon:'search',label:'Legal Search' },
     { id:'caselaws',  icon:'scale', label:'Case Laws' },
     { id:'circulars', icon:'bell',  label:'Circulars & Notifications' },
     { id:'articles',  icon:'doc',   label:'Articles' },
     { id:'queries',   icon:'help',  label:'Legal Queries' },
     { id:'library',   icon:'save',  label:'Saved Library' },
-    { id:'kb',        icon:'book',  label:'Knowledge Base' },
     { id:'settings',  icon:'gear',  label:'Settings' }
   ];
 
@@ -150,7 +149,6 @@ ${wired ? 'Connected to your live backend.' : 'Running in demo mode — connect 
               <textarea id="chatInput" rows="1" placeholder="Ask about company law, case law, circulars, FEMA, SEBI..."></textarea>
               <button class="send-btn js-send" title="Send">${icon('send')}</button>
             </div>
-            <div class="integration-note">RAG endpoint placeholder · configure <code>ENDPOINTS.chat</code> in <code>assets/js/config.js</code> to wire your n8n webhook.</div>
           </div>
         </section>
       </div>`;
@@ -207,6 +205,10 @@ ${wired ? 'Connected to your live backend.' : 'Running in demo mode — connect 
       return `
       <div class="content fade-in">
         <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-end"><div><span class="eyebrow">Workspace</span><h1 class="serif">Saved Library</h1></div><button class="btn primary">${icon('plus')} New Folder</button></div>
+        <div class="drive-banner card">
+          <div class="drive-banner-left">${icon('folder')}<div><h3>Legal Documents on Google Drive</h3><p>Access the full collection of indexed legal documents — acts, circulars, judgments and more.</p></div></div>
+          <a class="btn primary" href="https://drive.google.com/drive/folders/1pz-aVASD_BaQ3xny7YYYTZmmbsMjAiYD" target="_blank" rel="noopener noreferrer">${icon('export')} Open in Google Drive</a>
+        </div>
         <div class="search-layout">
           <aside class="card filters"><h3>Folders</h3><div style="margin-top:10px">${folders}</div><button class="btn" style="width:100%;justify-content:center;margin-top:14px">${icon('plus')} Create Folder</button></aside>
           <div class="card"><div class="table-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Type</th><th>Tags</th><th>Date</th></tr></thead><tbody>${rows}</tbody></table></div></div>
@@ -252,6 +254,27 @@ ${wired ? 'Connected to your live backend.' : 'Running in demo mode — connect 
             <div class="assist-out" id="assistOut" style="display:none"></div>
             <div style="padding:14px 16px;border-top:1px solid var(--line)"><div class="compose-box" style="box-shadow:none"><textarea id="docAsk" rows="1" placeholder="Ask about this document..."></textarea><button class="send-btn js-docask">${icon('send')}</button></div></div>
           </aside>
+        </div>
+      </div>`;
+    },
+
+    upload() {
+      return `
+      <div class="content fade-in">
+        <div class="page-head"><span class="eyebrow">Documents</span><h1 class="serif">Upload Document</h1><p>Upload legal documents to index them for AI-powered retrieval.</p></div>
+        <div class="card upload-card">
+          <div class="upload-zone" id="uploadZone">
+            <div class="upload-zone-ic">${icon('upload')}</div>
+            <h3>Drop files here or click to browse</h3>
+            <p>PDF, DOCX, TXT — multiple files supported</p>
+            <input type="file" id="uploadFile" multiple accept=".pdf,.docx,.doc,.txt" style="display:none">
+          </div>
+          <div id="uploadFileList" class="upload-file-list" style="display:none"></div>
+          <div class="upload-actions">
+            <button class="btn primary" id="uploadBtn" disabled>${icon('upload')} Upload Documents</button>
+            <button class="btn" id="uploadClear" style="display:none">${icon('plus')} Clear</button>
+          </div>
+          <div id="uploadStatus" class="upload-status" style="display:none"></div>
         </div>
       </div>`;
     },
@@ -344,6 +367,46 @@ ${wired ? 'Connected to your live backend.' : 'Running in demo mode — connect 
       const da = $('#docAsk');
       if(da){ $('.js-docask').addEventListener('click', async ()=>{ if(!da.value.trim())return; out.style.display='block'; out.innerHTML='<span class="typing"><span></span><span></span><span></span></span>'; const r=await API.askDocument('doc-1', da.value); out.innerHTML='<b style="color:var(--ink)">Answer</b><br>'+r.answer; da.value=''; }); }
     },
+    upload() {
+      const zone = $('#uploadZone');
+      const fileInput = $('#uploadFile');
+      const list = $('#uploadFileList');
+      const btn = $('#uploadBtn');
+      const clearBtn = $('#uploadClear');
+      const status = $('#uploadStatus');
+      let selectedFiles = [];
+
+      const renderList = () => {
+        if (!selectedFiles.length) {
+          list.style.display = 'none'; btn.disabled = true; clearBtn.style.display = 'none'; return;
+        }
+        list.style.display = 'block'; btn.disabled = false; clearBtn.style.display = 'inline-flex';
+        list.innerHTML = selectedFiles.map(f=>`<div class="upload-file-row">${icon('doc')}<span class="fname">${f.name}</span><span class="fsize">${(f.size/1024).toFixed(1)} KB</span></div>`).join('');
+      };
+
+      zone.addEventListener('click', () => fileInput.click());
+      zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+      zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+      zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); selectedFiles = [...e.dataTransfer.files]; renderList(); });
+      fileInput.addEventListener('change', () => { selectedFiles = [...fileInput.files]; renderList(); });
+      clearBtn.addEventListener('click', () => { selectedFiles = []; fileInput.value = ''; renderList(); status.style.display = 'none'; });
+
+      btn.addEventListener('click', async () => {
+        if (!selectedFiles.length) return;
+        btn.disabled = true;
+        status.style.display = 'block';
+        status.innerHTML = `<span class="typing"><span></span><span></span><span></span></span> Uploading ${selectedFiles.length} file(s)…`;
+        try {
+          const r = await API.uploadDocument(selectedFiles);
+          status.innerHTML = `<span class="badge proc">Success</span> ${r.message || selectedFiles.length + ' file(s) uploaded and queued for indexing.'}`;
+          selectedFiles = []; fileInput.value = ''; renderList();
+        } catch(e) {
+          status.innerHTML = `<span class="badge failed">Error</span> Upload failed: ${e.message}`;
+          btn.disabled = false;
+        }
+      });
+    },
+
     settings() {
       document.querySelectorAll('.js-settheme').forEach(b=> b.addEventListener('click', ()=>{
         const t=b.dataset.t; localStorage.setItem(Theme.KEY,t); Theme.apply(t); render(current);
@@ -399,7 +462,7 @@ ${wired ? 'Connected to your live backend.' : 'Running in demo mode — connect 
   let current = 'dashboard';
 
   function renderShell() {
-    const navHtml = NAV.map((n,i)=>`${i===9?'<div class="nav-sep"></div>':''}<button class="nav-item" data-route="${n.id}">${icon(n.icon,'ic')}<span>${n.label}</span></button>`).join('');
+    const navHtml = NAV.map((n,i)=>`${i===8?'<div class="nav-sep"></div>':''}<button class="nav-item" data-route="${n.id}">${icon(n.icon,'ic')}<span>${n.label}</span></button>`).join('');
     document.body.innerHTML = `
       <div class="app" id="app">
         <div class="scrim" id="scrim"></div>

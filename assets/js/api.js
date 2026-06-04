@@ -92,6 +92,21 @@
       return { ok: true, queued: files ? files.length : 0, message: "Demo mode — upload simulated. Wire ENDPOINTS.kbUpload to a real n8n webhook to index documents." };
     },
 
+    /* ----- DOCUMENT UPLOAD ------------------------------------------- */
+    async uploadDocument(files) {
+      const url = cfg.ENDPOINTS.docUpload;
+      if (url) {
+        const fd = new FormData();
+        [...files].forEach(f => fd.append("file", f));
+        const h = {}; if (cfg.AUTH.header && cfg.AUTH.value) h[cfg.AUTH.header] = cfg.AUTH.value;
+        const res = await fetch(url, { method: "POST", headers: h, body: fd });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json().catch(() => ({ ok: true, message: files.length + " file(s) uploaded successfully." }));
+      }
+      await delay(1200);
+      return { ok: true, message: files.length + " file(s) queued for indexing." };
+    },
+
     /* ----- LIBRARY ---------------------------------------------------- */
     async libraryList() {
       if (live("libraryList")) return get(cfg.ENDPOINTS.libraryList);
