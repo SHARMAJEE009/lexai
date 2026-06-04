@@ -347,7 +347,7 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
   flex: none; display: none; width: 22px; height: 22px; border-radius: 6px;
   color: var(--muted); font-size: 15px; line-height: 1; place-items: center;
 }
-.hist:hover .hist-menu-btn, .hist.active .hist-menu-btn { display: grid; }
+.hist:hover .hist-menu-btn, .hist.active .hist-menu-btn, .msg.ai:hover .hist-menu-btn, table.tbl tr:hover .hist-menu-btn { display: grid; }
 .hist-menu-btn:hover { background: var(--line); color: var(--ink); }
 
 /* Three-dot dropdown */
