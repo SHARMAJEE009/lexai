@@ -233,7 +233,7 @@
         </div>`).join('');
       
       return `
-      <div class="content fade-in" style="max-width: 800px;">
+      <div class="content fade-in">
         <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-end; margin-bottom: 16px;">
           <div><span class="eyebrow">Workspace</span><h1 class="serif">Saved Library</h1></div>
         </div>
